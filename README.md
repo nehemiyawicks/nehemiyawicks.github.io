@@ -1,6 +1,4 @@
-# Nehemiya Wickramasinghe
-
-Security researcher and software engineer.
+# Security researcher and software engineer.
 
 ## About
 
