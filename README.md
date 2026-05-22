@@ -17,7 +17,7 @@ Currently working on AI training data systems for frontier model development and
 
 ## Projects
 
-- **CVE discovery** — Integer overflow in a monitoring platform's C source. Proof of concept written, CVE assigned.
+- **Monitoring platform vulnerability** — Integer overflow in a monitoring platform's C source. Proof of concept written.
 - **Blockchain VM audit** — Resource limit bypass in VM allocator. State rollback inconsistencies in mempool block construction.
 - **DeFi protocol SDK audit** — Missing validation of leaf values, refund outputs, and timelocks in transfer verification.
 - **AI training pipeline** — Task specifications, test suites, and QA for frontier AI model training via reinforcement learning.
