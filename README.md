@@ -1,6 +1,4 @@
-### Nehemiya Wickramasinghe
-
-I'm a security researcher and software engineer. I read code line by line, mostly in low-level systems — blockchain VMs, cryptographic libraries, embedded engines, infrastructure.
+# Security researcher and software engineer.
 
 These days I build training-data systems for frontier model development, and audit a handful of bug bounty programs on the side. I work primarily in C, C++, Rust, and Python; Go, TypeScript, and Solidity show up when the target calls for it.
 
