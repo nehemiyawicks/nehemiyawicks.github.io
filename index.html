@@ -9,188 +9,99 @@
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
     :root {
-      --bg: #0d0d0d;
-      --text: #e5e5e5;
-      --text-muted: #888888;
-      --border: #2a2a2a;
-      --link: #8ab4f8;
+      --bg: #0e0e0e;
+      --text: #d4d4d4;
+      --muted: #888;
+      --rule: #2a2a2a;
     }
 
-    html { font-size: 16px; }
+    html { font-size: 17px; }
 
     body {
       background: var(--bg);
       color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-      line-height: 1.6;
-      max-width: 720px;
+      font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+      line-height: 1.65;
+      max-width: 36rem;
       margin: 0 auto;
-      padding: 4rem 1.5rem 6rem;
+      padding: 7rem 1.5rem 6rem;
+      font-feature-settings: "kern", "liga", "onum";
     }
 
     a {
-      color: var(--link);
-      text-decoration: none;
+      color: inherit;
+      text-decoration: underline;
+      text-decoration-color: var(--muted);
+      text-underline-offset: 3px;
+      text-decoration-thickness: 1px;
     }
 
-    a:hover { text-decoration: underline; }
+    a:hover { text-decoration-color: var(--text); }
 
-    header {
-      margin-bottom: 3rem;
+    p { margin-bottom: 1.1rem; }
+
+    .label {
+      font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      font-size: 0.72rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin: 3rem 0 1.25rem;
     }
 
-    .subtitle {
-      font-size: 1.1rem;
-      margin-bottom: 1.5rem;
+    .work {
+      list-style: none;
     }
 
-    .links {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 1rem;
-      font-size: 0.95rem;
+    .work li {
+      padding: 0.55rem 0;
+      border-top: 1px solid var(--rule);
     }
 
-    section {
-      margin-bottom: 2.5rem;
-    }
+    .work li:last-child { border-bottom: 1px solid var(--rule); }
 
-    h2 {
-      font-size: 1.1rem;
+    .work b {
       font-weight: 600;
-      margin-bottom: 1rem;
-      padding-bottom: 0.4rem;
-      border-bottom: 1px solid var(--border);
     }
 
-    p { margin-bottom: 1rem; }
-    p:last-child { margin-bottom: 0; }
-
-    ul { list-style: none; }
-
-    .skills dt {
-      font-weight: 600;
-      margin-top: 0.75rem;
-      margin-bottom: 0.25rem;
-    }
-
-    .skills dt:first-child { margin-top: 0; }
-
-    .skills dd {
-      color: var(--text-muted);
-    }
-
-    .projects li {
-      margin-bottom: 1.25rem;
-    }
-
-    .projects li:last-child { margin-bottom: 0; }
-
-    .project-title {
-      font-weight: 600;
-      margin-bottom: 0.25rem;
-    }
-
-    .project-desc {
-      color: var(--text-muted);
-      font-size: 0.95rem;
-    }
-
-    .certs li {
-      color: var(--text-muted);
-      padding: 0.15rem 0;
+    .work span {
+      color: var(--muted);
     }
 
     footer {
-      margin-top: 4rem;
-      padding-top: 1.5rem;
-      border-top: 1px solid var(--border);
-      color: var(--text-muted);
+      margin-top: 3.5rem;
       font-size: 0.9rem;
+      color: var(--muted);
     }
 
+    footer a + a::before {
+      content: "·";
+      margin: 0 0.5rem;
+      color: var(--rule);
+      text-decoration: none;
+      display: inline-block;
+    }
   </style>
 </head>
 <body>
 
-<header>
-  <p class="subtitle">Security researcher and software engineer.</p>
-  <nav class="links">
-    <a href="https://github.com/nehemiyawicks">GitHub</a>
-    <a href="https://linkedin.com/in/nehemiya-wickramasinghe">LinkedIn</a>
-    <a href="https://hackerone.com/nwicks">HackerOne</a>
-    <a href="mailto:nehemiyawicks@gmail.com">Email</a>
-  </nav>
-</header>
+<p>I'm Nehemiya — a security researcher and software engineer. I read code line by line, mostly in low-level systems: blockchain VMs, cryptographic libraries, embedded engines, infrastructure.</p>
 
-<section>
-  <h2>About</h2>
-  <p>
-    Independent security researcher focused on manual source code auditing of low-level systems: blockchain VMs, cryptographic libraries, embedded engines, and infrastructure platforms.
-  </p>
-  <p>
-    Currently working on AI training data systems for frontier model development and conducting research across bug bounty programs.
-  </p>
-</section>
+<p>These days I build training-data systems for frontier model development, and audit a handful of bug bounty programs on the side. I work primarily in C, C++, Rust, and Python; Go, TypeScript, and Solidity show up when the target calls for it.</p>
 
-<section>
-  <h2>Skills</h2>
-  <dl class="skills">
-    <dt>Languages</dt>
-    <dd>C, C++, Rust, Go, Python, Java, TypeScript, JavaScript, Solidity, SQL</dd>
-    <dt>Security</dt>
-    <dd>Burp Suite, Wireshark, source code auditing, memory corruption, auth bypass, blockchain consensus, crypto analysis, SSL/TLS</dd>
-    <dt>Cloud and infrastructure</dt>
-    <dd>AWS, Azure, GCP, Docker, Kubernetes, Terraform, VMware ESXi, pfSense</dd>
-    <dt>DevOps and tools</dt>
-    <dd>GitLab CI/CD, GitHub Actions, Linux administration, Jira, Confluence, Notion</dd>
-  </dl>
-</section>
+<div class="label">Selected work</div>
 
-<section>
-  <h2>Projects and research</h2>
-  <ul class="projects">
-    <li>
-      <div class="project-title">Integer overflow in monitoring platform</div>
-      <div class="project-desc">Found an integer overflow in a widely used monitoring platform's C source through manual auditing. Wrote a working proof of concept.</div>
-    </li>
-    <li>
-      <div class="project-title">Blockchain VM allocator audit</div>
-      <div class="project-desc">Analyzed a blockchain VM allocator for resource limit bypass. Identified state rollback inconsistencies in mempool block construction.</div>
-    </li>
-    <li>
-      <div class="project-title">DeFi protocol SDK audit</div>
-      <div class="project-desc">Audited transfer verification logic. Identified missing validation of leaf values, refund outputs, and timelocks during transfer receipt.</div>
-    </li>
-    <li>
-      <div class="project-title">AI training data pipeline</div>
-      <div class="project-desc">Built coding task specifications, test suites, and QA for training frontier AI models through reinforcement learning. Created tooling for identifying high-complexity commits and calibrating task difficulty.</div>
-    </li>
-    <li>
-      <div class="project-title">iExtract</div>
-      <div class="project-desc">Tool to extract and back up iMessages and SMS from iTunes backups into CSV.</div>
-    </li>
-    <li>
-      <div class="project-title">Home lab and cloud operations</div>
-      <div class="project-desc">VMware ESXi servers, pfSense firewall, network monitoring, cloud deployment with AWS and Terraform, CI/CD pipelines via GitLab.</div>
-    </li>
-  </ul>
-</section>
-
-<section>
-  <h2>Certifications</h2>
-  <ul class="certs">
-    <li>Google Cybersecurity Professional Certificate V2</li>
-    <li>ISC2 Cybersecurity Fundamentals</li>
-    <li>DevSecOps Certificate, TryHackMe</li>
-    <li>LFS158: Introduction to Kubernetes, Linux Foundation</li>
-    <li>Ethical Hacker, Cisco</li>
-    <li>AWS Educate: Getting Started with Security</li>
-  </ul>
-</section>
+<ol class="work">
+  <li><b>Monitoring platform.</b> <span>Integer overflow in a widely used C codebase, found by manual audit. Working PoC.</span></li>
+  <li><b>Blockchain VM allocator.</b> <span>Resource-limit bypass and state-rollback inconsistencies in mempool block construction.</span></li>
+  <li><b>DeFi protocol SDK.</b> <span>Missing validation of leaf values, refund outputs, and timelocks during transfer receipt.</span></li>
+  <li><b>AI training pipeline.</b> <span>Coding-task specs, test suites, and QA for RL-trained frontier models; tooling to calibrate difficulty.</span></li>
+  <li><b>iExtract.</b> <span>Pulls iMessages and SMS out of iTunes backups into CSV.</span></li>
+  <li><b>Home lab.</b> <span>ESXi, pfSense, AWS, Terraform; the usual self-hosted assortment.</span></li>
+</ol>
 
 <footer>
-  <p>&copy; 2026 Nehemiya Wickramasinghe</p>
+  <a href="mailto:nehemiyawicks@gmail.com">nehemiyawicks@gmail.com</a><a href="https://github.com/nehemiyawicks">github</a><a href="https://linkedin.com/in/nehemiya-wickramasinghe">linkedin</a><a href="https://hackerone.com/nwicks">hackerone</a>
 </footer>
 
 </body>
